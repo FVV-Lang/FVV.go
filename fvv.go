@@ -235,6 +235,17 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 		return
 	}
 
+	type FVVVDat struct {
+		value_name                 strings.Builder
+		idx_desc                   string
+		value_names, group_names   []string
+		last_group_names           [][]string
+		tmp_fvvs                   []FVVV
+		in_value, in_list, is_list bool
+		group_num                  uint64
+		root_key                   FVVV
+		idx_key                    *FVVV
+	}
 	get_key := func(paths []string, root_key *FVVV) *FVVV {
 		tmp_key := root_key
 		for _, path := range paths {
@@ -251,20 +262,11 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 		}
 		return tmp_key
 	}
-
-	find_key := func(path string, idx_key, root_key *FVVV) *FVVV {
+	find_key := func(path string, stack_dat []FVVVDat) *FVVV {
 		tmp_names := strings.Split(strings.TrimSpace(path), ".")
-		tmp_key := idx_key
-		for _, key := range tmp_names {
-			if tmp_key.Sub[key] == nil {
-				tmp_key = nil
-				break
-			} else {
-				tmp_key = tmp_key.Sub[key]
-			}
-		}
-		if tmp_key == nil {
-			tmp_key = root_key
+		var tmp_key *FVVV
+		find := func(idx_dat *FVVVDat, root bool) *FVVV {
+			tmp_key = idx_dat.idx_key
 			for _, key := range tmp_names {
 				if tmp_key.Sub[key] == nil {
 					tmp_key = nil
@@ -273,38 +275,44 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 					tmp_key = tmp_key.Sub[key]
 				}
 			}
+			if tmp_key == nil {
+				if root {
+					tmp_key = _fvvv
+				} else {
+					tmp_key = &idx_dat.root_key
+				}
+				for _, key := range tmp_names {
+					if tmp_key.Sub[key] == nil {
+						tmp_key = nil
+						break
+					} else {
+						tmp_key = tmp_key.Sub[key]
+					}
+				}
+			}
+			return tmp_key
+		}
+		for idx := len(stack_dat) - 1; idx >= 0; idx-- {
+			if find(&(stack_dat)[idx], idx == 0) != nil {
+				return tmp_key
+			}
 		}
 		return tmp_key
 	}
-
-	type FVVVDat struct {
-		value_name                 strings.Builder
-		idx_desc                   string
-		value_names, group_names   []string
-		last_group_names           [][]string
-		tmp_fvvs                   []FVVV
-		in_value, in_list, is_list bool
-		group_num                  uint64
-		fvvv                       FVVV
-	}
-	root_dat := FVVVDat{}
 	var end_group, old_fvv, is_real_char, in_desc, in_str, is_str, is_all_str, is_empty_str bool
 	var tmp_desc, value strings.Builder
 	var values []string
 	var last_char rune
-	fvv_stack := make([]FVVVDat, 0)
+	fvv_stack := []FVVVDat{{}}
+	fvv_stack[0].idx_key = _fvvv
 	for idx, idx_char := range txt {
 		is_real_char = last_char != '\\'
-		var root_key *FVVV
-		var idx_dat *FVVVDat
-		if len(fvv_stack) > 0 {
-			root_key = &fvv_stack[len(fvv_stack)-1].fvvv
-			idx_dat = &fvv_stack[len(fvv_stack)-1]
+		idx_dat := &fvv_stack[len(fvv_stack)-1]
+		if len(fvv_stack) > 1 {
+			idx_dat.idx_key = &idx_dat.root_key
 		} else {
-			root_key = _fvvv
-			idx_dat = &root_dat
+			idx_dat.idx_key = _fvvv
 		}
-		idx_key := root_key
 		if func() bool {
 			if in_desc {
 				if idx_char != '>' || !is_real_char {
@@ -401,9 +409,9 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 						} else if _, err := strconv.ParseFloat(value_str, 64); err == nil {
 							values = append(values, value_str)
 						} else {
-							idx_key = get_key([]string{value_str}, get_key(idx_dat.group_names, idx_key))
-							if idx_key.IsNotEmpty() {
-								switch v := idx_key.Value.(type) {
+							idx_dat.idx_key = get_key([]string{value_str}, get_key(idx_dat.group_names, idx_dat.idx_key))
+							if idx_dat.idx_key.IsNotEmpty() {
+								switch v := idx_dat.idx_key.Value.(type) {
 								case string:
 									values = append(values, v)
 								case bool:
@@ -450,14 +458,14 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 						idx_dat.in_value = false
 						return false
 					} else if !idx_dat.in_list && eqOr(idx_char, ';', '\n') {
-						idx_key = get_key(idx_dat.value_names, get_key(idx_dat.group_names, idx_key))
+						idx_dat.idx_key = get_key(idx_dat.value_names, get_key(idx_dat.group_names, idx_dat.idx_key))
 						if idx_dat.is_list {
 							if len(values) == 0 && len(idx_dat.tmp_fvvs) == 0 {
-								idx_key.Value = nil
+								idx_dat.idx_key.Value = nil
 							} else if len(idx_dat.tmp_fvvs) > 0 {
-								idx_key.Value = idx_dat.tmp_fvvs
+								idx_dat.idx_key.Value = idx_dat.tmp_fvvs
 							} else if is_all_str {
-								idx_key.Value = values
+								idx_dat.idx_key.Value = values
 							} else {
 								tmp_str := values[0]
 								if eqOr(tmp_str, "true", "false") {
@@ -465,7 +473,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 									for i, s := range values {
 										tmps[i] = s == "true"
 									}
-									idx_key.Value = tmps
+									idx_dat.idx_key.Value = tmps
 								} else if _, err := strconv.Atoi(tmp_str); err == nil {
 									tmps := make([]int, len(values))
 									for i, s := range values {
@@ -473,7 +481,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 											tmps[i] = tmp
 										}
 									}
-									idx_key.Value = tmps
+									idx_dat.idx_key.Value = tmps
 								} else if _, err := strconv.ParseFloat(tmp_str, 64); err == nil {
 									tmps := make([]float64, len(values))
 									for i, s := range values {
@@ -481,29 +489,29 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 											tmps[i] = tmp
 										}
 									}
-									idx_key.Value = tmps
+									idx_dat.idx_key.Value = tmps
 								}
 							}
 						} else {
 							value_str := value.String()
 							if is_all_str {
-								idx_key.Value = value_str
+								idx_dat.idx_key.Value = value_str
 							} else if eqOr(value_str, "true", "false") {
-								idx_key.Value = value_str == "true"
+								idx_dat.idx_key.Value = value_str == "true"
 							} else if tmp, err := strconv.Atoi(value_str); err == nil {
-								idx_key.Value = tmp
+								idx_dat.idx_key.Value = tmp
 							} else if tmp, err := strconv.ParseFloat(value_str, 64); err == nil {
-								idx_key.Value = tmp
-							} else if tmp_key := find_key(value_str, idx_key, root_key); tmp_key != nil {
+								idx_dat.idx_key.Value = tmp
+							} else if tmp_key := find_key(value_str, fvv_stack); tmp_key != nil {
 								if len(tmp_key.Sub) == 0 {
-									idx_key.Value = tmp_key.Value
+									idx_dat.idx_key.Value = tmp_key.Value
 								} else {
-									idx_key.Sub = tmp_key.Sub
+									idx_dat.idx_key.Sub = tmp_key.Sub
 								}
-								idx_key.Link = value_str
+								idx_dat.idx_key.Link = value_str
 							}
 						}
-						idx_key.Desc = idx_dat.idx_desc
+						idx_dat.idx_key.Desc = idx_dat.idx_desc
 						value.Reset()
 						idx_dat.idx_desc = ""
 						values, idx_dat.value_names, idx_dat.tmp_fvvs = nil, nil, nil
@@ -525,7 +533,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 			} else if end_group && eqOr(idx_char, ';', '\n') && idx_dat.group_num > 0 {
 				end_group = false
 				if idx_dat.idx_desc != "" {
-					get_key(idx_dat.group_names, idx_key).Desc = idx_dat.idx_desc
+					get_key(idx_dat.group_names, idx_dat.idx_key).Desc = idx_dat.idx_desc
 					idx_dat.idx_desc = ""
 				}
 				for range idx_dat.last_group_names[len(idx_dat.last_group_names)-1] {
@@ -536,14 +544,10 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 				return false
 			} else if idx_char == '}' {
 				if idx_dat.group_num == 0 {
-					if len(fvv_stack) > 0 {
-						target_fvvv := fvv_stack[len(fvv_stack)-1].fvvv
+					if len(fvv_stack) > 1 {
+						target_fvvv := fvv_stack[len(fvv_stack)-1].root_key
 						fvv_stack = fvv_stack[:len(fvv_stack)-1]
-						if len(fvv_stack) > 0 {
-							idx_dat = &fvv_stack[len(fvv_stack)-1]
-						} else {
-							idx_dat = &root_dat
-						}
+						idx_dat = &fvv_stack[len(fvv_stack)-1]
 						idx_dat.tmp_fvvs = append(idx_dat.tmp_fvvs, target_fvvv)
 						return false
 					}
