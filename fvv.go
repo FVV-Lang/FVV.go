@@ -265,39 +265,34 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 	find_key := func(path string, stack_dat []FVVVDat) *FVVV {
 		tmp_names := strings.Split(strings.TrimSpace(path), ".")
 		var tmp_key *FVVV
-		find := func(idx_dat *FVVVDat, root bool) *FVVV {
+		for idx := len(stack_dat) - 1; idx >= 0; idx-- {
+			idx_dat := &(stack_dat)[idx]
 			tmp_key = idx_dat.idx_key
 			for _, key := range tmp_names {
-				if tmp_key.Sub[key] == nil {
-					tmp_key = nil
-					break
-				} else {
+				if tmp_key.Sub[key] != nil {
 					tmp_key = tmp_key.Sub[key]
-				}
-			}
-			if tmp_key == nil {
-				if root {
-					tmp_key = _fvvv
 				} else {
-					tmp_key = &idx_dat.root_key
-				}
-				for _, key := range tmp_names {
-					if tmp_key.Sub[key] == nil {
-						tmp_key = nil
-						break
+					if idx == 0 {
+						tmp_key = _fvvv
 					} else {
-						tmp_key = tmp_key.Sub[key]
+						tmp_key = &idx_dat.root_key
 					}
+					for _, key := range tmp_names {
+						if tmp_key.Sub[key] != nil {
+							tmp_key = tmp_key.Sub[key]
+						} else {
+							tmp_key = nil
+							break
+						}
+					}
+					break
 				}
 			}
-			return tmp_key
-		}
-		for idx := len(stack_dat) - 1; idx >= 0; idx-- {
-			if find(&(stack_dat)[idx], idx == 0) != nil {
+			if tmp_key != nil {
 				return tmp_key
 			}
 		}
-		return tmp_key
+		return nil
 	}
 	var end_group, old_fvv, is_real_char, in_desc, in_str, is_str, is_all_str, is_empty_str bool
 	var tmp_desc, value strings.Builder
