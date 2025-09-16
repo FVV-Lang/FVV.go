@@ -321,6 +321,11 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 				} else {
 					idx_dat.idx_desc = tmp_desc.String()
 					tmp_desc.Reset()
+					if key := find_key(idx_dat.idx_desc, fvv_stack); key != nil {
+						if desc, ok := key.Value.(string); ok {
+							idx_dat.idx_desc = desc
+						}
+					}
 					in_desc = false
 					return false
 				}
