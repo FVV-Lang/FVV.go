@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-func eqOr[Tp comparable](a Tp, args ...Tp) bool {
+func _eqOr[Tp comparable](a Tp, args ...Tp) bool {
 	for _, v := range args {
 		if a == v {
 			return true
@@ -27,7 +27,7 @@ func eqOr[Tp comparable](a Tp, args ...Tp) bool {
 	return false
 }
 
-func removeLastChar(builder *strings.Builder) {
+func _removeLastChar(builder *strings.Builder) {
 	runes := []rune(builder.String())
 	if len(runes) > 0 {
 		runes = runes[:len(runes)-1]
@@ -58,24 +58,32 @@ func (_fvvv *FVVV) SubIsNotEmpty() bool {
 	return !_fvvv.SubIsEmpty()
 }
 
-func writeList[T any](
+type FormatOpt uint8
+
+const (
+	FmtOptCommon FormatOpt = iota
+	FmtOptMin
+	FmtOptBigList
+	FmtOptNoDesc
+)
+
+func _writeList[T any](
 	result *strings.Builder,
 	list []T,
-	is_biglist bool,
-	is_min bool,
+	opt FormatOpt,
 	list_indent string,
 	printer func(*strings.Builder, T),
 ) bool {
 	for _, value := range list {
-		if is_biglist {
+		if opt == FmtOptBigList {
 			result.WriteString(list_indent)
 		}
 		printer(result, value)
-		if is_biglist {
+		if opt == FmtOptBigList {
 			result.WriteRune('\n')
 		} else {
 			result.WriteRune(',')
-			if !is_min {
+			if opt != FmtOptMin {
 				result.WriteRune(' ')
 			}
 		}
@@ -83,15 +91,14 @@ func writeList[T any](
 	return len(list) == 0
 }
 
-func (_fvvv *FVVV) Print(tp ...string) string {
-	var is_min, is_biglist, is_nodesc bool
-	indent_lv := 0
-	if len(tp) > 0 {
-		is_min, is_biglist, is_nodesc = tp[0] == "min", tp[0] == "biglist", tp[0] == "nodesc"
-	}
-	if len(tp) > 1 {
-		indent_lv, _ = strconv.Atoi(tp[1])
-	}
+type PrintOpt struct {
+	fmt_opt   FormatOpt
+	indent_lv int
+}
+
+func (_fvvv *FVVV) Print(print_opt PrintOpt) string {
+	opt := print_opt.fmt_opt
+	indent_lv := print_opt.indent_lv
 	var result strings.Builder
 	var print_func func(path string, node *FVVV, indent_lv int)
 	print_func = func(path string, node *FVVV, indent_lv int) {
@@ -100,14 +107,14 @@ func (_fvvv *FVVV) Print(tp ...string) string {
 		}
 		indent := strings.Repeat("  ", indent_lv)
 		if node.SubIsNotEmpty() && node.Link == "" {
-			if is_min {
+			if opt == FmtOptMin {
 				result.WriteString(path + "={")
 			} else {
 				result.WriteString(indent + path + " = {\n")
 			}
 		}
 		if node.Link != "" || node.IsNotEmpty() {
-			if is_min {
+			if opt == FmtOptMin {
 				result.WriteString(path + "=")
 			} else {
 				result.WriteString(indent + path + " = ")
@@ -125,72 +132,71 @@ func (_fvvv *FVVV) Print(tp ...string) string {
 				case float64:
 					result.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 				case []string, []bool, []int, []float64, []FVVV:
+					_, is_fvvvs := v.([]FVVV)
+					if node.Desc != "" && is_fvvvs {
+						result.WriteString("<" + strings.ReplaceAll(node.Desc, `>`, `\>`) + ">")
+						if opt != FmtOptMin {
+							result.WriteRune(' ')
+						}
+					}
 					list_indent := strings.Repeat("  ", indent_lv+1)
 					result.WriteRune('[')
-					if is_biglist {
-						result.WriteRune('\n')
-					} else if _, ok := v.([]FVVV); ok {
+					if opt == FmtOptBigList || (opt != FmtOptMin && is_fvvvs) {
 						result.WriteRune('\n')
 					}
 					is_empty_list := true
 					switch v := node.Value.(type) {
 					case []string:
-						is_empty_list = writeList(&result, v, is_biglist, is_min, list_indent, func(sb *strings.Builder, v string) {
+						is_empty_list = _writeList(&result, v, opt, list_indent, func(sb *strings.Builder, v string) {
 							sb.WriteString(`"` + strings.ReplaceAll(v, `"`, `\"`) + `"`)
 						})
 					case []bool:
-						is_empty_list = writeList(&result, v, is_biglist, is_min, list_indent, func(sb *strings.Builder, v bool) {
+						is_empty_list = _writeList(&result, v, opt, list_indent, func(sb *strings.Builder, v bool) {
 							sb.WriteString(strconv.FormatBool(v))
 						})
 					case []int:
-						is_empty_list = writeList(&result, v, is_biglist, is_min, list_indent, func(sb *strings.Builder, v int) {
+						is_empty_list = _writeList(&result, v, opt, list_indent, func(sb *strings.Builder, v int) {
 							sb.WriteString(strconv.Itoa(v))
 						})
 					case []float64:
-						is_empty_list = writeList(&result, v, is_biglist, is_min, list_indent, func(sb *strings.Builder, v float64) {
+						is_empty_list = _writeList(&result, v, opt, list_indent, func(sb *strings.Builder, v float64) {
 							sb.WriteString(strconv.FormatFloat(v, 'f', -1, 64))
 						})
 					case []FVVV:
 						is_empty_list = len(v) == 0
 						for _, value := range v {
-							if !is_min {
+							if opt != FmtOptMin {
 								result.WriteString(list_indent)
 							}
+							if value.Desc != "" {
+								result.WriteString("<" + strings.ReplaceAll(value.Desc, `>`, `\>`) + ">")
+								if opt != FmtOptMin {
+									result.WriteRune(' ')
+								}
+							}
 							result.WriteRune('{')
-							if !is_min {
+							if opt != FmtOptMin {
 								result.WriteRune('\n')
 							}
-							sub_type := ""
-							if len(tp) > 0 {
-								sub_type = tp[0]
-							}
-							result.WriteString(value.Print(sub_type, strconv.Itoa(indent_lv+2)))
-							if is_min {
+							result.WriteString(value.Print(PrintOpt{fmt_opt: opt, indent_lv: indent_lv + 2}))
+							if opt == FmtOptMin {
 								result.WriteString(";}")
 							} else {
 								result.WriteString("\n" + list_indent + "}")
 							}
-							if value.Desc != "" {
-								if !is_min {
-									result.WriteRune(' ')
-								}
-								result.WriteString("<" + strings.ReplaceAll(value.Desc, `>`, `\>`) + ">")
-							}
-							if is_min {
+							if opt == FmtOptMin {
 								result.WriteRune(',')
 							} else {
 								result.WriteRune('\n')
 							}
 						}
 					}
-					if is_biglist {
-						result.WriteString(indent)
-					} else if _, ok := v.([]FVVV); ok {
+					if opt == FmtOptBigList || (opt != FmtOptMin && is_fvvvs) {
 						result.WriteString(indent)
 					} else if !is_empty_list {
-						removeLastChar(&result)
-						if !is_min {
-							removeLastChar(&result)
+						_removeLastChar(&result)
+						if opt != FmtOptMin {
+							_removeLastChar(&result)
 						}
 					}
 					result.WriteRune(']')
@@ -202,15 +208,16 @@ func (_fvvv *FVVV) Print(tp ...string) string {
 			}
 		}
 		if node.SubIsNotEmpty() && node.Link == "" {
-			if !is_min {
+			if opt != FmtOptMin {
 				result.WriteString(indent)
 			}
 			result.WriteRune('}')
 		}
-		if node.Desc != "" && !is_min && !is_nodesc {
+		_, is_fvvvs := node.Value.([]FVVV)
+		if node.Desc != "" && !is_fvvvs && opt != FmtOptMin && opt != FmtOptNoDesc {
 			result.WriteString(" <" + strings.ReplaceAll(node.Desc, `>`, `\>`) + ">")
 		}
-		if is_min {
+		if opt == FmtOptMin {
 			result.WriteRune(';')
 		} else {
 			result.WriteRune('\n')
@@ -219,11 +226,11 @@ func (_fvvv *FVVV) Print(tp ...string) string {
 	for key, value := range _fvvv.Sub {
 		print_func(key, value, indent_lv)
 	}
-	removeLastChar(&result)
+	_removeLastChar(&result)
 	return result.String()
 }
 
-func (_fvvv *FVVV) AddFromString(txt string) {
+func (_fvvv *FVVV) ParseString(txt string) {
 	txtBytes := []byte(txt)
 	if len(txtBytes) >= 3 && txtBytes[0] == 0xEF && txtBytes[1] == 0xBB && txtBytes[2] == 0xBF {
 		txtBytes = txtBytes[3:]
@@ -312,7 +319,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 			if in_desc {
 				if idx_char != '>' || !is_real_char {
 					if idx_char == '>' {
-						removeLastChar(&tmp_desc)
+						_removeLastChar(&tmp_desc)
 					}
 					if idx_dat.in_value || idx_dat.group_num > 0 {
 						tmp_desc.WriteRune(idx_char)
@@ -330,7 +337,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 					return false
 				}
 			} else {
-				if !in_str && eqOr(idx_char, ' ', '\t') {
+				if !in_str && _eqOr(idx_char, ' ', '\t') {
 					return false
 				}
 				if idx_char == '<' {
@@ -346,7 +353,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 							in_str = false
 							return false
 						} else {
-							removeLastChar(&value)
+							_removeLastChar(&value)
 							value.WriteRune(idx_char)
 							return false
 						}
@@ -364,7 +371,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 					} else if idx_dat.in_list && idx_char == '{' {
 						fvv_stack = append(fvv_stack, FVVVDat{})
 						return false
-					} else if idx_dat.in_list && eqOr(idx_char, ',', ']', '\n') {
+					} else if idx_dat.in_list && _eqOr(idx_char, ',', ']', '\n') {
 						value_str := value.String()
 						if idx_char == ']' {
 							idx_dat.in_list = false
@@ -402,7 +409,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 						} else if len(idx_dat.tmp_fvvs) == 0 && value_str == "" && (!is_all_str || !is_empty_str) {
 							return false
 						}
-						if (is_all_str && is_str) || eqOr(value_str, "true", "false") {
+						if (is_all_str && is_str) || _eqOr(value_str, "true", "false") {
 							values = append(values, value_str)
 						} else if _, err := strconv.Atoi(value_str); err == nil {
 							values = append(values, value_str)
@@ -457,7 +464,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 						idx_dat.group_num++
 						idx_dat.in_value = false
 						return false
-					} else if !idx_dat.in_list && eqOr(idx_char, ';', '\n') {
+					} else if !idx_dat.in_list && _eqOr(idx_char, ';', '\n') {
 						idx_dat.idx_key = get_key(idx_dat.value_names, get_key(idx_dat.group_names, idx_dat.idx_key))
 						if idx_dat.is_list {
 							if len(values) == 0 && len(idx_dat.tmp_fvvs) == 0 {
@@ -468,7 +475,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 								idx_dat.idx_key.Value = values
 							} else {
 								tmp_str := values[0]
-								if eqOr(tmp_str, "true", "false") {
+								if _eqOr(tmp_str, "true", "false") {
 									tmps := make([]bool, len(values))
 									for i, s := range values {
 										tmps[i] = s == "true"
@@ -496,7 +503,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 							value_str := value.String()
 							if is_all_str {
 								idx_dat.idx_key.Value = value_str
-							} else if eqOr(value_str, "true", "false") {
+							} else if _eqOr(value_str, "true", "false") {
 								idx_dat.idx_key.Value = value_str == "true"
 							} else if tmp, err := strconv.Atoi(value_str); err == nil {
 								idx_dat.idx_key.Value = tmp
@@ -530,7 +537,7 @@ func (_fvvv *FVVV) AddFromString(txt string) {
 				idx_dat.value_name.Reset()
 				idx_dat.in_value = true
 				return false
-			} else if end_group && eqOr(idx_char, ';', '\n') && idx_dat.group_num > 0 {
+			} else if end_group && _eqOr(idx_char, ';', '\n') && idx_dat.group_num > 0 {
 				end_group = false
 				if idx_dat.idx_desc != "" {
 					get_key(idx_dat.group_names, idx_dat.idx_key).Desc = idx_dat.idx_desc
