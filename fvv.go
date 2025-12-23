@@ -137,7 +137,7 @@ func (_fwv *FVVV) IsEmpty() bool {
 		return len(val) == 0
 	case []string:
 		return len(val) == 0
-	case []FVVV:
+	case []*FVVV:
 		return len(val) == 0
 	default:
 		return _fwv.Value == nil
@@ -197,7 +197,7 @@ func (_fwv *FVVV) IsStringList() bool {
 }
 
 func (_fwv *FVVV) IsFVVVList() bool {
-	return Is[[]FVVV](_fwv)
+	return Is[[]*FVVV](_fwv)
 }
 
 func (_fwv *FVVV) IsValue() bool {
@@ -288,7 +288,7 @@ func (_fwv *FVVV) StringList(defaultValue ...[]string) []string {
 	return List(_fwv, defaultValue...)
 }
 
-func (_fwv *FVVV) FVVVList(defaultValue ...[]FVVV) []FVVV {
+func (_fwv *FVVV) FVVVList(defaultValue ...[]*FVVV) []*FVVV {
 	return List(_fwv, defaultValue...)
 }
 
