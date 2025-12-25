@@ -1252,6 +1252,9 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 				ret.WriteByte(' ')
 			}
 		}
+		if ctx.full_width && _sb_last_empty(ret) {
+			_sb_trim_last(ret)
+		}
 		ret.WriteRune(ctx.fwv_begin)
 		if !ctx.minify {
 			ret.WriteString(ctx.newline)
@@ -1369,13 +1372,12 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 		ret.WriteRune(ctx.list_end)
 	}
 
-	if !ctx.no_descs &&
+	if !ctx.no_descs && tgt_node.Desc != "" &&
 		((tgt_node.IsNodesEmpty() && !tgt_node.IsFVVVList()) ||
-			tgt_node.Link != "" || !ctx.fww_style) &&
-		tgt_node.Desc != "" {
+			tgt_node.Link != "" || !ctx.fww_style) {
 		if !ctx.minify &&
 			(!ctx.full_width || tgt_node.Link != "" ||
-				(!tgt_node.IsList() && !tgt_node.IsString()) ||
+				(tgt_node.IsNodesEmpty() && !tgt_node.IsList() && !tgt_node.IsString()) ||
 				(tgt_node.IsString() && _sb_last_is(ret, '`'))) {
 			ret.WriteByte(' ')
 		}
@@ -1521,7 +1523,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder,
 	case *FVVV:
 		if ctx.fww_style && val.Desc != "" {
 			ret.WriteString(_escape_string(val.Desc, true, ctx.full_width))
-			if !ctx.minify {
+			if !ctx.minify && !ctx.full_width {
 				ret.WriteByte(' ')
 			}
 		}
@@ -1536,7 +1538,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder,
 		}
 		ret.WriteRune(ctx.fwv_end)
 		if !ctx.no_descs && !ctx.fww_style && val.Desc != "" {
-			if !ctx.minify {
+			if !ctx.minify && !ctx.full_width {
 				ret.WriteByte(' ')
 			}
 			ret.WriteString(_escape_string(val.Desc, true, ctx.full_width))
