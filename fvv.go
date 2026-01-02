@@ -853,10 +853,7 @@ func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 func _parse_name(ctx *textCtx) string {
 	ctx.skip_blanks()
 	var name strings.Builder
-	for !ctx.is_eof() {
-		if ctx.prematch('=', ':', '：', '<') {
-			break
-		}
+	for !ctx.is_eof() && !ctx.prematch('=', ':', '：', '<') {
 		name.WriteRune(ctx.next())
 	}
 	if name.Len() == 0 {
@@ -894,9 +891,8 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 				tgt_fwv.Value = _value_to_string(tgt_fwv.Value) + tmp_str
 			}
 		} else {
-			for {
-				if ctx.is_eof() || ctx.prematch('<', '+') || ctx.prematch('\r', '\n') ||
-					((in_list && ctx.prematch(',', '，', ']', '］')) || (!in_list && ctx.prematch(';', '；'))) {
+			for !ctx.is_eof() && !ctx.prematch('<', '+') && !ctx.prematch('\r', '\n') {
+				if (in_list && ctx.prematch(',', '，', ']', '］')) || (!in_list && ctx.prematch(';', '；')) {
 					break
 				}
 				tmp_sb.WriteRune(ctx.next())
