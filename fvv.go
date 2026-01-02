@@ -644,9 +644,9 @@ func NewFormatCtx(flags FormatOpt) *FormatCtx {
 
 func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 	scope_stack = append(scope_stack, _fwv)
+
 	for {
 		var idx_desc strings.Builder
-
 		if err = _parse_desc(ctx, &idx_desc, scope_stack, false); err != nil {
 			return
 		}
