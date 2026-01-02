@@ -689,8 +689,8 @@ func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 					return ctx.ErrWhyEOF()
 				}
 				if ctx.match_any('{', '｛') {
+					list_type = _fwv
 					tmp_value := NewFVVV()
-					list_type = tmp_value
 					if err = tmp_value._parse_main(ctx, scope_stack); err != nil {
 						return
 					}
