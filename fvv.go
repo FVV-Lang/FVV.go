@@ -299,12 +299,12 @@ func (_fwv *FVVV) Unlink() {
 	}
 }
 
-func (_fwv *FVVV) ParseString(tgt_txt string) (err error) {
-	if strings.TrimSpace(tgt_txt) == "" {
+func (_fwv *FVVV) ParseString(text string) (err error) {
+	if strings.TrimSpace(text) == "" {
 		return nil
 	}
 
-	ctx := newTextCtx(tgt_txt)
+	ctx := newTextCtx(text)
 	scope_stack := make([]*FVVV, 0, 1)
 
 	ctx.skip_blanks()
@@ -438,13 +438,13 @@ func (_ctx *textCtx) next() rune {
 	return rune
 }
 
-func (_ctx *textCtx) match(tgt rune, bool_arga ...bool) bool {
+func (_ctx *textCtx) match(tgt rune, bool_args ...bool) bool {
 	skip_blanks, same_line := true, false
-	if len(bool_arga) >= 1 {
-		skip_blanks = bool_arga[0]
+	if len(bool_args) >= 1 {
+		skip_blanks = bool_args[0]
 	}
-	if len(bool_arga) >= 2 {
-		same_line = bool_arga[1]
+	if len(bool_args) >= 2 {
+		same_line = bool_args[1]
 	}
 	if skip_blanks {
 		_ctx.skip_blanks(same_line)
@@ -467,7 +467,7 @@ func (_ctx *textCtx) match_any(tgts ...rune) bool {
 
 func (_ctx *textCtx) skip_blanks(same_line_arg ...bool) {
 	same_line := len(same_line_arg) >= 1 && same_line_arg[0]
-	for _ctx.index < len(_ctx.input) {
+	for !_ctx.is_eof() {
 		idx_byte := _ctx.input[_ctx.index]
 		if idx_byte < utf8.RuneSelf {
 			if same_line && (idx_byte == '\n' || idx_byte == '\r') {
@@ -853,8 +853,8 @@ func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 func _parse_name(ctx *textCtx) string {
 	ctx.skip_blanks()
 	var name strings.Builder
-	for {
-		if ctx.is_eof() || ctx.prematch('=', ':', '：', '<') {
+	for !ctx.is_eof() {
+		if ctx.prematch('=', ':', '：', '<') {
 			break
 		}
 		name.WriteRune(ctx.next())
@@ -1031,7 +1031,7 @@ func _parse_text(ctx *textCtx, text *strings.Builder) error {
 			}
 			text.WriteRune(ctx.next())
 		}
-		tmp_str := _trim_indent(strings.TrimSpace(text.String()))
+		tmp_str := strings.TrimSpace(_trim_indent(text.String()))
 		text.Reset()
 		text.WriteString(tmp_str)
 		return nil
@@ -1095,18 +1095,25 @@ func _try_parse_number(tgt_value *any, tgt_str string) bool {
 		idx++
 	}
 
-	is_hex := false
-	is_bin := false
+	is_hex, is_oct, is_bin := false, false, false
 	if idx+1 < len(tgt_str) && tgt_str[idx] == '0' {
 		switch tgt_str[idx+1] {
 		case 'x', 'X':
 			is_hex = true
 			tmp_sb.WriteString("0x")
 			idx += 2
+		case 'o', 'O':
+			is_oct = true
+			tmp_sb.WriteString("0o")
+			idx += 2
 		case 'b', 'B':
 			is_bin = true
 			tmp_sb.WriteString("0b")
 			idx += 2
+		case '0', '1', '2', '3', '4', '5', '6', '7':
+			is_oct = true
+			tmp_sb.WriteByte('0')
+			idx++
 		}
 	}
 
@@ -1126,6 +1133,12 @@ func _try_parse_number(tgt_value *any, tgt_str string) bool {
 
 		if is_hex {
 			if (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F') {
+				tmp_sb.WriteByte(ch)
+			} else {
+				return false
+			}
+		} else if is_oct {
+			if ch >= '0' && ch <= '7' {
 				tmp_sb.WriteByte(ch)
 			} else {
 				return false
@@ -1496,7 +1509,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder,
 			if need_raw {
 				str_indent := indent + ctx.indent_unit
 
-				val = _trim_indent(strings.TrimSpace(val))
+				val = strings.TrimSpace(_trim_indent(val))
 
 				ret.WriteByte('`')
 				ret.WriteString(ctx.newline)
