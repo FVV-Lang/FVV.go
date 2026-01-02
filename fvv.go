@@ -1196,9 +1196,9 @@ func _find_key(path string, scope_stack []*FVVV) (target *FVVV) {
 	paths := strings.Split(path, ".")
 	for idx := len(scope_stack) - 1; idx >= 0; idx-- {
 		target = scope_stack[idx]
-		for _, key := range paths {
-			if target.Nodes[key] != nil {
-				target = target.Nodes[key]
+		for _, idx_path := range paths {
+			if target.Nodes[idx_path] != nil {
+				target = target.Nodes[idx_path]
 			} else {
 				target = nil
 				break
