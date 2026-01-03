@@ -1233,14 +1233,19 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 
 	tgt_node := _fwv
 	if ctx.flatten_paths {
+		var tmp_name strings.Builder
+		tmp_name.Grow(len(name) + 6)
+		tmp_name.WriteString(name)
 		for len(tgt_node.Nodes) == 1 &&
 			(ctx.no_descs || tgt_node.Desc == "") &&
 			(ctx.no_links || tgt_node.Link == "") {
 			for sub_name, sub_node := range tgt_node.Nodes {
-				name += "." + sub_name
+				tmp_name.WriteByte('.')
+				tmp_name.WriteString(sub_name)
 				tgt_node = sub_node
 			}
 		}
+		name = tmp_name.String()
 	}
 
 	indent := ""
@@ -1425,7 +1430,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder,
 				case 16:
 					ret.WriteString("0x0")
 				case 8:
-					ret.WriteString("0")
+					ret.WriteString("0o0")
 				case 2:
 					ret.WriteString("0b0")
 				}
@@ -1445,7 +1450,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder,
 				ret.WriteString("0b")
 				ret.WriteString(strconv.FormatUint(tgt_uint, 2))
 			case 8:
-				ret.WriteByte('0')
+				ret.WriteString("0o")
 				ret.WriteString(strconv.FormatUint(tgt_uint, 8))
 			case 16:
 				ret.WriteString("0x")
