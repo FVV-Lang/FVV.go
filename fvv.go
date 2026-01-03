@@ -1494,38 +1494,32 @@ func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent 
 			ret.WriteRune(ch)
 		}
 
-		if len(parts) > 1 {
+		if len(parts) >= 2 {
 			ret.WriteByte('.')
 			ret.WriteString(parts[1])
 		}
 
 	case string:
-		if !ctx.minify && ctx.raw_str && len(val) >= 3 {
-			need_raw := false
-			if strings.ContainsAny(strings.TrimSpace(val), "\r\n") && !strings.ContainsRune(val, '`') {
-				need_raw = true
-			}
+		if !ctx.minify && ctx.raw_str && len(val) >= 3 &&
+			!strings.ContainsRune(val, '`') && strings.ContainsAny(strings.TrimSpace(val), "\r\n") {
+			str_indent := indent + ctx.indent_unit
 
-			if need_raw {
-				str_indent := indent + ctx.indent_unit
+			val = strings.TrimSpace(_trim_indent(val))
 
-				val = strings.TrimSpace(_trim_indent(val))
-
-				ret.WriteByte('`')
-				ret.WriteString(ctx.newline)
-				scanner := bufio.NewScanner(strings.NewReader(val))
-				for scanner.Scan() {
-					line := scanner.Text()
-					if line != "" {
-						ret.WriteString(str_indent)
-					}
-					ret.WriteString(line)
-					ret.WriteString(ctx.newline)
+			ret.WriteByte('`')
+			ret.WriteString(ctx.newline)
+			scanner := bufio.NewScanner(strings.NewReader(val))
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line != "" {
+					ret.WriteString(str_indent)
 				}
-				ret.WriteString(indent)
-				ret.WriteByte('`')
-				return
+				ret.WriteString(line)
+				ret.WriteString(ctx.newline)
 			}
+			ret.WriteString(indent)
+			ret.WriteByte('`')
+			return
 		}
 
 		if level == 0 && ctx.full_width && _sb_last_empty(ret) {
