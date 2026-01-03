@@ -836,7 +836,7 @@ func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 		if err = _parse_desc(ctx, &idx_desc, scope_stack, false, true); err != nil {
 			return
 		}
-		if ctx.is_same_line() && !ctx.is_eof() && !ctx.match_any(';', '；') {
+		if ctx.is_same_line() && !ctx.is_eof() && !ctx.match_any(';', '；') && !ctx.prematch('}', '｝') {
 			return ctx.ErrStrNotFound("EOL")
 		}
 	set_desc:
@@ -868,7 +868,8 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 		if err = _parse_desc(ctx, idx_desc, scope_stack, in_list, !in_list); err != nil {
 			return
 		}
-		if ctx.is_eof() || ((in_list && (ctx.match_any(',', '，') || ctx.prematch(']', '］'))) || (!in_list && (!ctx.is_same_line() || ctx.match_any(';', '；')))) {
+		if ctx.is_eof() || ((in_list && (ctx.match_any(',', '，') || ctx.prematch(']', '］'))) ||
+			(!in_list && (!ctx.is_same_line() || ctx.match_any(';', '；') || ctx.prematch('}', '｝')))) {
 			return ctx.ErrStrNotFound("value")
 		}
 
@@ -887,7 +888,8 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 			}
 		} else {
 			for !ctx.is_eof() && !ctx.prematch('<', '+') && !ctx.prematch('\r', '\n') {
-				if (in_list && ctx.prematch(',', '，', ']', '］')) || (!in_list && ctx.prematch(';', '；')) {
+				if (in_list && ctx.prematch(',', '，', ']', '］')) ||
+					(!in_list && ctx.prematch(';', '；', '}', '｝')) {
 					break
 				}
 				tmp_sb.WriteRune(ctx.next())
@@ -942,7 +944,7 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 		}
 		if ctx.is_eof() || !ctx.is_same_line() ||
 			((in_list && (ctx.match_any(',', '，') || ctx.prematch(']', '］'))) ||
-				(!in_list && ctx.match_any(';', '；'))) {
+				(!in_list && (ctx.match_any(';', '；') || ctx.prematch('}', '｝')))) {
 			return nil
 		}
 
