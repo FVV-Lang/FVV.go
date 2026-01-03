@@ -299,7 +299,7 @@ func (_fwv *FVVV) Unlink() {
 	}
 }
 
-func (_fwv *FVVV) ParseString(text string) (err error) {
+func (_fwv *FVVV) ParseString(text string, target_arg ...any) (err error) {
 	if strings.TrimSpace(text) == "" {
 		return nil
 	}
@@ -322,15 +322,10 @@ func (_fwv *FVVV) ParseString(text string) (err error) {
 		return ctx.ErrWhyNotEOF()
 	}
 
-	return nil
-}
-
-func (_fwv *FVVV) ParseStringTo(tgt_txt string, tgt_val any) (err error) {
-	if err := _fwv.ParseString(tgt_txt); err != nil {
-		return err
-	}
-	if err := _fwv.Unmarshal(tgt_val); err != nil {
-		return err
+	if len(target_arg) >= 1 {
+		if err := _fwv.Unmarshal(target_arg); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -375,6 +370,7 @@ func (_fwv *FVVV) Unmarshal(val any) error {
 }
 
 func (_fwv *FVVV) Marshal(val any) error {
+	_fwv.Unlink()
 	return _from(_fwv, reflect.ValueOf(val))
 }
 
