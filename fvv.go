@@ -356,7 +356,6 @@ func (_fwv *FVVV) ToString(opts ...FormatOpt) string {
 		level = 1
 	}
 	_fwv._to_string_root(ctx, &ret, level)
-
 	if ctx.use_wrapper {
 		if !ctx.minify {
 			ret.WriteString(ctx.newline)
