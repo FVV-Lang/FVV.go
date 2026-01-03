@@ -1405,7 +1405,7 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 	}
 }
 
-func _to_string_value(ctx *FormatCtx, tgt_val interface{}, ret *strings.Builder, indent string, level int) {
+func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent string, level int) {
 	switch val := tgt_val.(type) {
 	case bool:
 		ret.WriteString(strconv.FormatBool(val))
