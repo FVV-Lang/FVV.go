@@ -760,10 +760,6 @@ func (_fwv *FVVV) _parse_main(ctx *textCtx, scope_stack []*FVVV) (err error) {
 					break
 				}
 			}
-			if list_type == nil {
-				return ctx.ErrStrNotFound("value")
-			}
-
 			switch list_type.(type) {
 			case *string:
 				final_list := make([]string, len(tgt_list))
@@ -874,17 +870,15 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 		}
 
 		var tmp_sb strings.Builder
-		var tmp_str string
 		if ctx.prematch('"', '“', '`') {
 			if err = _parse_text(ctx, &tmp_sb); err != nil {
 				return
 			}
-			tmp_str = tmp_sb.String()
 			if tgt_fwv.Value == nil {
-				tgt_fwv.Value = tmp_str
+				tgt_fwv.Value = tmp_sb.String()
 			} else {
 				tgt_fwv.Link = ""
-				tgt_fwv.Value = _value_to_string(tgt_fwv.Value) + tmp_str
+				tgt_fwv.Value = _value_to_string(tgt_fwv.Value) + tmp_sb.String()
 			}
 		} else {
 			for !ctx.is_eof() && !ctx.prematch('<', '+') && !ctx.prematch('\r', '\n') {
@@ -894,7 +888,7 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 				}
 				tmp_sb.WriteRune(ctx.next())
 			}
-			tmp_str = strings.TrimSpace(tmp_sb.String())
+			tmp_str := strings.TrimSpace(tmp_sb.String())
 			if tmp_str == "" {
 				return ctx.ErrStrNotFound("value")
 			}
@@ -921,7 +915,7 @@ func _parse_value(ctx *textCtx, scope_stack []*FVVV, tgt_fwv *FVVV, idx_desc *st
 					if target != nil {
 						if tgt_fwv.Value != nil {
 							switch target.Value.(type) {
-							case []bool, []int64, []float64, []string, []*FVVV:
+							case []bool, []int64, []int, []float64, []string, []*FVVV:
 								return ctx.ErrPlusList()
 							}
 						}
@@ -966,41 +960,6 @@ func _parse_desc(ctx *textCtx, desc *strings.Builder, scope_stack []*FVVV, bool_
 	for {
 		orig_idx, orig_line := ctx.index, len(ctx.lines_start)
 		if ctx.match('<', true, same_line) {
-			desc.Reset()
-			for {
-				if ctx.is_eof() {
-					return ctx.ErrWhyEOF()
-				}
-				if ctx.match('>', false) {
-					if target := _find_key(desc.String(), scope_stack); target != nil && target.IsString() {
-						desc.Reset()
-						desc.WriteString(target.String())
-					}
-					break
-				}
-				if ctx.match('\\', false) {
-					if ctx.is_eof() {
-						return ctx.ErrWhyEOF()
-					}
-					if ctx.match('>', false) {
-						desc.WriteByte('>')
-					} else {
-						ch, tgt := ctx.next(), byte(0)
-						if ch < rune(len(_escape_table)) {
-							tgt = _escape_table[uint8(ch)]
-						}
-						if tgt != 0 {
-							desc.WriteByte(tgt)
-						} else {
-							desc.WriteByte('\\')
-							desc.WriteRune(ch)
-						}
-					}
-				} else {
-					desc.WriteRune(ctx.next())
-				}
-			}
-		} else {
 			if !skip_blanks {
 				ctx.index = orig_idx
 				if len(ctx.lines_start) > orig_line {
@@ -1008,6 +967,41 @@ func _parse_desc(ctx *textCtx, desc *strings.Builder, scope_stack []*FVVV, bool_
 				}
 			}
 			break
+		}
+
+		desc.Reset()
+		for {
+			if ctx.is_eof() {
+				return ctx.ErrWhyEOF()
+			}
+			if ctx.match('>', false) {
+				if target := _find_key(desc.String(), scope_stack); target != nil && target.IsString() {
+					desc.Reset()
+					desc.WriteString(target.String())
+				}
+				break
+			}
+			if ctx.match('\\', false) {
+				if ctx.is_eof() {
+					return ctx.ErrWhyEOF()
+				}
+				if ctx.match('>', false) {
+					desc.WriteByte('>')
+				} else {
+					ch, tgt := ctx.next(), byte(0)
+					if ch < rune(len(_escape_table)) {
+						tgt = _escape_table[uint8(ch)]
+					}
+					if tgt != 0 {
+						desc.WriteByte(tgt)
+					} else {
+						desc.WriteByte('\\')
+						desc.WriteRune(ch)
+					}
+				}
+			} else {
+				desc.WriteRune(ctx.next())
+			}
 		}
 	}
 	return nil
