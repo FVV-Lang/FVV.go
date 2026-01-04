@@ -571,9 +571,7 @@ func NewFormatCtx(flags FormatOpt) *FormatCtx {
 		int_base: 10,
 	}
 
-	if flags&FmtOptUseWrapper != 0 {
-		ctx.use_wrapper = true
-	}
+	ctx.use_wrapper = flags&FmtOptUseWrapper != 0
 
 	if flags&FmtOptUseCRLF != 0 {
 		ctx.newline = "\r\n"
