@@ -1030,10 +1030,7 @@ func _parse_text(ctx *textCtx, text *strings.Builder) error {
 		return nil
 	}
 
-	is_full_width := ctx.match('“')
-	if !is_full_width && !ctx.match('"') {
-		return ctx.ErrUnknown()
-	}
+	is_full_width := ctx.match('“') || !ctx.match('"')
 	for {
 		if ctx.is_eof() {
 			return ctx.ErrWhyEOF()
@@ -1228,6 +1225,7 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 	if _, is_text := _fwv.Value.(string); name == "" || (!is_text && _fwv.IsEmpty() && _fwv.IsNodesEmpty()) {
 		return
 	}
+	ret.Grow(len(_fwv.Nodes) * 6)
 
 	tgt_node := _fwv
 	if ctx.flatten_paths {
@@ -1266,16 +1264,7 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 		if ctx.full_width && _sb_last_empty(ret) {
 			_sb_trim_last(ret)
 		}
-		ret.WriteRune(ctx.fwv_begin)
-		if !ctx.minify {
-			ret.WriteString(ctx.newline)
-		}
-		tgt_node._to_string_root(ctx, ret, level+1)
-		if !ctx.minify {
-			ret.WriteString(ctx.newline)
-			ret.WriteString(indent)
-		}
-		ret.WriteRune(ctx.fwv_end)
+		_to_string_fwv(ctx, tgt_node, ret, indent, level)
 	} else if tgt_node.IsValue() {
 		_to_string_value(ctx, tgt_node.Value, ret, indent, 0)
 	} else if tgt_node.IsList() {
@@ -1404,9 +1393,9 @@ func (_fwv *FVVV) _to_string_main(ctx *FormatCtx, name string, ret *strings.Buil
 }
 
 func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent string, level int) {
-	switch val := tgt_val.(type) {
+	switch tgt_val := tgt_val.(type) {
 	case bool:
-		ret.WriteString(strconv.FormatBool(val))
+		ret.WriteString(strconv.FormatBool(tgt_val))
 
 	case int64, int, float64:
 		_, is_int64 := tgt_val.(int64)
@@ -1446,14 +1435,12 @@ func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent 
 			switch ctx.int_base {
 			case 2:
 				ret.WriteString("0b")
-				ret.WriteString(strconv.FormatUint(tgt_uint, 2))
 			case 8:
 				ret.WriteString("0o")
-				ret.WriteString(strconv.FormatUint(tgt_uint, 8))
 			case 16:
 				ret.WriteString("0x")
-				ret.WriteString(strconv.FormatUint(tgt_uint, 16))
 			}
+			ret.WriteString(strconv.FormatUint(tgt_uint, ctx.int_base))
 			break
 		}
 
@@ -1482,6 +1469,7 @@ func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent 
 			break
 		}
 
+		ret.Grow(len(raw_num) + int_len/ctx.digit_sep_step + 1)
 		if has_sign {
 			ret.WriteByte(raw_num[0])
 		}
@@ -1498,15 +1486,14 @@ func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent 
 		}
 
 	case string:
-		if !ctx.minify && ctx.raw_str && len(val) >= 3 &&
-			!strings.ContainsRune(val, '`') && strings.ContainsAny(strings.TrimSpace(val), "\r\n") {
+		if !ctx.minify && ctx.raw_str && len(tgt_val) >= 3 &&
+			!strings.ContainsRune(tgt_val, '`') && strings.ContainsAny(strings.TrimSpace(tgt_val), "\r\n") {
 			str_indent := indent + ctx.indent_unit
-
-			val = strings.TrimSpace(_trim_indent(val))
+			ret.Grow(len(tgt_val) + len(str_indent)*6)
 
 			ret.WriteByte('`')
 			ret.WriteString(ctx.newline)
-			scanner := bufio.NewScanner(strings.NewReader(val))
+			scanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(_trim_indent(tgt_val))))
 			for scanner.Scan() {
 				line := scanner.Text()
 				if line != "" {
@@ -1523,36 +1510,41 @@ func _to_string_value(ctx *FormatCtx, tgt_val any, ret *strings.Builder, indent 
 		if level == 0 && ctx.full_width && _sb_last_empty(ret) {
 			_sb_trim_last(ret)
 		}
-		ret.WriteString(_escape_string(val, false, ctx.full_width))
+		ret.WriteString(_escape_string(tgt_val, false, ctx.full_width))
 
 	case *FVVV:
-		if ctx.fww_style && val.Desc != "" {
-			ret.WriteString(_escape_string(val.Desc, true, ctx.full_width))
+		if ctx.fww_style && tgt_val.Desc != "" {
+			ret.WriteString(_escape_string(tgt_val.Desc, true, ctx.full_width))
 			if !ctx.minify && !ctx.full_width {
 				ret.WriteByte(' ')
 			}
 		}
-		ret.WriteRune(ctx.fwv_begin)
-		if !ctx.minify {
-			ret.WriteString(ctx.newline)
-		}
-		val._to_string_root(ctx, ret, level+1)
-		if !ctx.minify {
-			ret.WriteString(ctx.newline)
-			ret.WriteString(indent)
-		}
-		ret.WriteRune(ctx.fwv_end)
-		if !ctx.no_descs && !ctx.fww_style && val.Desc != "" {
+		_to_string_fwv(ctx, tgt_val, ret, indent, level)
+		if !ctx.no_descs && !ctx.fww_style && tgt_val.Desc != "" {
 			if !ctx.minify && !ctx.full_width {
 				ret.WriteByte(' ')
 			}
-			ret.WriteString(_escape_string(val.Desc, true, ctx.full_width))
+			ret.WriteString(_escape_string(tgt_val.Desc, true, ctx.full_width))
 		}
 	}
 }
 
+func _to_string_fwv(ctx *FormatCtx, tgt_fwv *FVVV, ret *strings.Builder, indent string, level int) {
+	ret.WriteRune(ctx.fwv_begin)
+	if !ctx.minify {
+		ret.WriteString(ctx.newline)
+	}
+	tgt_fwv._to_string_root(ctx, ret, level+1)
+	if !ctx.minify {
+		ret.WriteString(ctx.newline)
+		ret.WriteString(indent)
+	}
+	ret.WriteRune(ctx.fwv_end)
+}
+
 func _escape_string(str string, is_desc bool, full_width bool) string {
 	var ret strings.Builder
+	ret.Grow(len(str) + 6)
 
 	if is_desc {
 		ret.WriteByte('<')
