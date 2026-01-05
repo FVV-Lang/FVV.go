@@ -965,7 +965,7 @@ func _parse_desc(ctx *textCtx, desc *strings.Builder, scope_stack []*FVVV, bool_
 	}
 	for {
 		orig_idx, orig_line := ctx.index, len(ctx.lines_start)
-		if ctx.match('<', true, same_line) {
+		if !ctx.match('<', true, same_line) {
 			if !skip_blanks {
 				ctx.index = orig_idx
 				if len(ctx.lines_start) > orig_line {
