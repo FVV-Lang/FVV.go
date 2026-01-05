@@ -307,7 +307,7 @@ func (_fwv *FVVV) Unlink() {
 	}
 }
 
-func (_fwv *FVVV) ParseString(text string, target_arg ...any) (err error) {
+func (_fwv *FVVV) ParseString(text string, targets ...any) (err error) {
 	if strings.TrimSpace(text) == "" {
 		return nil
 	}
@@ -330,8 +330,8 @@ func (_fwv *FVVV) ParseString(text string, target_arg ...any) (err error) {
 		return ctx.ErrWhyNotEOF()
 	}
 
-	if len(target_arg) >= 1 {
-		if err := _fwv.Unmarshal(target_arg); err != nil {
+	for _, target := range targets {
+		if err := _fwv.Unmarshal(target); err != nil {
 			return err
 		}
 	}
