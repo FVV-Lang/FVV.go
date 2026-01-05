@@ -164,6 +164,14 @@ func Is[tgt_type any](fwv *FVVV) (ok bool) {
 	return
 }
 
+func IsList[tgt_type any](fwv *FVVV) (ok bool) {
+	if fwv == nil || fwv.Value == nil {
+		return false
+	}
+	_, ok = fwv.Value.([]tgt_type)
+	return
+}
+
 func (_fwv *FVVV) IsBool() bool {
 	return Is[bool](_fwv)
 }
