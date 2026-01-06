@@ -189,23 +189,23 @@ func (_fwv *FVVV) IsString() bool {
 }
 
 func (_fwv *FVVV) IsBoolList() bool {
-	return Is[[]bool](_fwv)
+	return IsList[bool](_fwv)
 }
 
 func (_fwv *FVVV) IsIntList() bool {
-	return Is[[]int64](_fwv) || Is[[]int](_fwv)
+	return IsList[int64](_fwv) || IsList[int](_fwv)
 }
 
 func (_fwv *FVVV) IsFloatList() bool {
-	return Is[[]float64](_fwv)
+	return IsList[float64](_fwv)
 }
 
 func (_fwv *FVVV) IsStringList() bool {
-	return Is[[]string](_fwv)
+	return IsList[string](_fwv)
 }
 
 func (_fwv *FVVV) IsFVVVList() bool {
-	return Is[[]*FVVV](_fwv)
+	return IsList[*FVVV](_fwv)
 }
 
 func (_fwv *FVVV) IsValue() bool {
