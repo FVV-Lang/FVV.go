@@ -1,3 +1,3 @@
-module app.niggergo.work/fvv
+module fvvlang.sbs/fvv
 
 go 1.18
